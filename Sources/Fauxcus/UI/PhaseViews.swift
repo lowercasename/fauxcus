@@ -434,14 +434,16 @@ struct BreakView: View {
     @EnvironmentObject var engine: FocusEngine
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(engine.currentTaskName)
+                .font(.system(size: 10, weight: .semibold))
+                .kerning(0.6)
+                .textCase(.uppercase)
+                .foregroundStyle(.tertiary)
+                .lineLimit(1)
             Text("On a break")
                 .font(.system(size: 14, weight: .semibold))
                 .modifier(Breathing())
-            Text("coming back to \(engine.currentTaskName)")
-                .font(.system(size: 12))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
             Text(engine.breakElapsedString)
                 .font(.system(size: 20, weight: .medium, design: .rounded).monospacedDigit())
                 .foregroundStyle(.tertiary)
