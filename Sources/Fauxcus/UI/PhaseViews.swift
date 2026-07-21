@@ -481,7 +481,7 @@ struct WelcomeBackView: View {
             } label: {
                 Text("Resume").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .controlSize(.large)
             HStack(spacing: 16) {
                 Button("Done") { engine.completeCurrent() }
