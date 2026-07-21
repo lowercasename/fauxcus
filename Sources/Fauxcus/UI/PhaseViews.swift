@@ -455,7 +455,7 @@ struct BreakView: View {
             } label: {
                 Text("Back to it").frame(maxWidth: .infinity)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(.bordered)
             .controlSize(.large)
         }
         .padding(14)
