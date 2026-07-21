@@ -441,12 +441,15 @@ struct BreakView: View {
                 .textCase(.uppercase)
                 .foregroundStyle(.tertiary)
                 .lineLimit(1)
-            Text("On a break")
-                .font(.system(size: 14, weight: .semibold))
-                .modifier(Breathing())
-            Text(engine.breakElapsedString)
-                .font(.system(size: 20, weight: .medium, design: .rounded).monospacedDigit())
-                .foregroundStyle(.tertiary)
+            HStack(alignment: .firstTextBaseline) {
+                Text("On a break")
+                    .font(.system(size: 14, weight: .semibold))
+                    .modifier(Breathing())
+                Spacer()
+                Text(engine.breakElapsedString)
+                    .font(.system(size: 20, weight: .medium, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.tertiary)
+            }
             Button {
                 engine.endBreak()
             } label: {
