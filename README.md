@@ -1,39 +1,28 @@
 # Fauxcus
 
-A tiny, native macOS focus companion that keeps one task name in your peripheral vision, heals itself when you drift or walk away, and never makes you feel bad.
+A macOS focus tracker: a small always-on-top panel showing the current task name and a count-up timer, plus a menu bar item. Runs as an accessory app (no Dock icon).
 
-Fauxcus lives as a small floating panel in the corner of your desktop plus a menu bar item — no Dock icon, no ⌘-Tab entry. You tell it what you're working on; it keeps you gently pointed at that one thing.
+## Design constraints
 
-## Design principles
+- Timing self-corrects. Idle, sleep, crashes, and forgotten pauses are reconciled automatically, so recorded focus time stays accurate without user discipline.
+- No streaks, daily totals, or overdue indicators anywhere in the UI.
+- Fixed defaults. Settings contains only the global hotkey, launch at login, and a Todoist API token.
 
-Every decision in Fauxcus follows one standing constraint, ADHD-first:
+## Behaviour
 
-- **Self-healing over punitive.** Walk away, forget to pause, quit mid-task — the app quietly fixes the books. Your focus time is never inflated and never lost.
-- **No guilt states.** No streaks, no daily totals, no red timers, no "you were gone 40 minutes!". Comparison metrics curdle into guilt on bad days, so they don't exist.
-- **The desired action is always the cheapest action.** Returning to work is one click. Ignoring a check-in is a legitimate answer. Resolving a stale task is one tap.
-- **Fixed opinionated defaults.** No interval sliders, no settings sprawl. When a default is wrong, the default gets changed — a knob doesn't get added.
+- **Start**: enter a task name to start a count-up timer. Parked tasks are listed for one-click resume; autocomplete draws on task history.
+- **Check-in**: the panel periodically asks "Still on *X*?" (Yes / Pausing) — never a modal, sound, or focus steal. Ignored for 60 seconds counts as Yes. The interval backs off 10 → 15 → 20 → 25 minutes on consecutive confirms and resets on a new task. At each interval's midpoint the panel plays a 2-second scale animation to draw the eye to the task name.
+- **Idle**: after 5 minutes of system idle or sleep, the task auto-pauses, backdated to when the idle began.
+- **Pause**: break (count-up timer, reminder at 10 minutes then every 5), park, or resume.
+- **Park**: prompts for a note on where you left off. Parked list is capped at 5; parking a 6th requires migrating one out to Todoist, Apple Reminders, Things, or the clipboard as Markdown.
+- **Done**: completed and migrated tasks land in a plain history list with notes and Markdown copy-out. No aggregate stats.
 
-## The loop
-
-- **Start** — one field: "What are you working on?" Enter starts a count-up timer. Parked tasks are listed below as one-tap resumes; quiet autocomplete draws on your task history.
-- **Breath** — at the midpoint of each check-in interval, the panel takes a slow, silent 2-second breath to re-anchor your attention on the task name.
-- **Check-in** — "Still on *X*?" with Yes / Pausing. Never a modal, never a sound, never steals focus. Ignore it for 60 seconds and it assumes you're working. The interval backs off 10 → 15 → 20 → 25 minutes as you confirm, and resets on a new task.
-- **Walk-away** — after 5 minutes of system idle (or sleep), the task auto-pauses **backdated to when you left**. Coming back shows a calm one-click Resume. Away time never counts.
-- **Pause** — Take a break / Park this task / Back to task.
-- **Break** — count-up, task stays loaded, one big "Back to it". A gentle nudge at 10 minutes, again every 5. No countdowns, no escalation.
-- **Park** — write a breadcrumb ("Where did you leave off?"), task moves to the parked list. Hard cap of **5 parked tasks**: parking a 6th asks you to migrate one first — to **Todoist**, **Apple Reminders**, **Things**, or the clipboard as Markdown.
-- **Done** — a brief completion flourish with the task name and focused time, then back to the picker.
-- **History** — a plain, stats-free list of everything you've finished or migrated, with notes and Markdown copy-out.
-
-## Notes
-
-Each task has one running notes field — always showing the full history, saving as you type. The ✎ button (or the global hotkey mid-task) opens it; the park screen pre-loads it so your breadcrumb lands in context.
+Each task has one autosaving notes field, opened with the ✎ button or the global hotkey mid-task; the park screen pre-loads it.
 
 ## Controls
 
-- **Global hotkey ⌃⌥Space** (rebindable in Settings) summons the panel: straight into note capture when a task is running, into the task field when idle.
-- The panel floats above other windows, never takes focus except when you deliberately type, is draggable anywhere, and remembers its spot.
-- Settings contains exactly three things: the hotkey, launch at login, and a Todoist API token.
+- Global hotkey ⌃⌥Space (rebindable): opens note capture when a task is running, the task field when idle.
+- The panel floats above other windows, takes keyboard focus only while you type, and is draggable; position persists.
 
 ## Building
 
@@ -52,11 +41,8 @@ Icons are generated from the SVG sources in `Resources/icon/`:
 
 ## Data
 
-Everything lives in a single human-readable JSON file at
-`~/Library/Application Support/Fauxcus/store.json`. A 30-second heartbeat
-makes crash recovery lossless: on the next launch, an interrupted task is
-closed at the last heartbeat and parked.
+Everything lives in a single JSON file at `~/Library/Application Support/Fauxcus/store.json`. A 30-second heartbeat makes crash recovery lossless: on the next launch, an interrupted task is closed at the last heartbeat and parked.
 
 ---
 
-Inspired by [Focana](https://focana.app)'s concept and [Things](https://culturedcode.com/things/)' feel. Built with Claude Code.
+Inspired by [Focana](https://focana.app) and [Things](https://culturedcode.com/things/). Built with Claude Code.
