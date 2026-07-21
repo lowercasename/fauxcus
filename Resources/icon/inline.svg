@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Inline glyph variant: the prism silhouette as a flat, outline-free mark.
+     Four chunky bands so it still reads as a spectrum at 18px. The detailed
+     white-face/black-frame treatment lives only in the app icon. -->
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <clipPath id="prism">
+      <path d="M487.83,319.44,295.63,36.88a48,48,0,0,0-79.26,0L24.17,319.44A47.1,47.1,0,0,0,41.1,387.57L233.3,490.32a48.05,48.05,0,0,0,45.4,0L470.9,387.57a47.1,47.1,0,0,0,16.93-68.13Z"/>
+    </clipPath>
+    <linearGradient id="glyphbands" gradientUnits="userSpaceOnUse" x1="256" y1="37" x2="417.5" y2="410.6">
+      <stop offset="0" stop-color="#FF3B30"/>
+      <stop offset="0.25" stop-color="#FF3B30"/>
+      <stop offset="0.25" stop-color="#FFCC00"/>
+      <stop offset="0.5" stop-color="#FFCC00"/>
+      <stop offset="0.5" stop-color="#34C759"/>
+      <stop offset="0.75" stop-color="#34C759"/>
+      <stop offset="0.75" stop-color="#007AFF"/>
+      <stop offset="1" stop-color="#007AFF"/>
+    </linearGradient>
+    <!-- Frosted-glass wash for the left facet: light does the work of an
+         outline; the spectrum ghosts through beneath. -->
+    <linearGradient id="frost" gradientUnits="userSpaceOnUse" x1="128" y1="37" x2="128" y2="490">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.85"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.6"/>
+    </linearGradient>
+  </defs>
+  <g clip-path="url(#prism)">
+    <rect x="0" y="0" width="512" height="512" fill="url(#glyphbands)"/>
+    <rect x="0" y="0" width="256" height="512" fill="url(#frost)"/>
+  </g>
+</svg>
