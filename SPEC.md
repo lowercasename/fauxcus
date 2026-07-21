@@ -146,7 +146,7 @@ UserDefaults: first-run flag, panel origin, hotkey code/modifiers, Todoist token
 
 ## Testing
 
-`swift test` covers the model transitions, store persistence (roundtrip, crash healing, corrupt-file backup), the engine state machine (check-in cadence and backoff, idle backdating, breaks, the parking cap and pending-park completion), and the formatters. The engine takes injectable `dateNow`/`idleSecondsProvider` closures so tests drive time deterministically. Note: `swift test` needs the full Xcode toolchain — if `xcode-select` points at the Command Line Tools, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`.
+`swift test` covers the model transitions, store persistence (roundtrip, crash healing, corrupt-file backup), the engine state machine (check-in cadence and backoff, idle backdating, breaks, the parking cap and pending-park completion), and the formatters. The engine takes injectable `dateNow`/`idleSecondsProvider` closures so tests drive time deterministically. `swift test` needs the full Xcode toolchain (`xcode-select -p` should point at Xcode, not the Command Line Tools).
 
 ## Out of scope (deliberately cut)
 
