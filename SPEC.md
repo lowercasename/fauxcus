@@ -144,6 +144,10 @@ UserDefaults: first-run flag, panel origin, hotkey code/modifiers, Todoist token
 - `UI/FloatingPanel.swift` — panel + positioning; `UI/PanelRootView.swift` — phase router, background, breath/wave effects; `UI/PhaseViews.swift` — all panel states; `UI/PlainTextField.swift` — AppKit text field; `UI/HistoryView.swift`, `UI/SettingsView.swift`.
 - `Support/` — Format (clock/duration), Markdown export, Carbon hotkey, login item; `Integrations/` — Todoist, Reminders, Things.
 
+## Testing
+
+`swift test` covers the model transitions, store persistence (roundtrip, crash healing, corrupt-file backup), the engine state machine (check-in cadence and backoff, idle backdating, breaks, the parking cap and pending-park completion), and the formatters. The engine takes injectable `dateNow`/`idleSecondsProvider` closures so tests drive time deterministically. Note: `swift test` needs the full Xcode toolchain — if `xcode-select` points at the Command Line Tools, run `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer swift test`.
+
 ## Out of scope (deliberately cut)
 
 Stats/charts, streaks, Pomodoro modes, multiple timers, iCloud sync, iOS companion, calendar integration, website/app blocking, sounds, onboarding of any kind, to-do lists.

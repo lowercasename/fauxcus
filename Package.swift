@@ -9,6 +9,12 @@ let package = Package(
             name: "Fauxcus",
             path: "Sources/Fauxcus",
             swiftSettings: [.swiftLanguageMode(.v5)]
-        )
+        ),
+        .testTarget(
+            name: "FauxcusTests",
+            dependencies: ["Fauxcus"],
+            path: "Tests/FauxcusTests",
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
     ]
 )

@@ -14,17 +14,21 @@ final class Store: ObservableObject {
     @Published private(set) var saveError: String?
     private var heartbeatDate: Date?
     private var saveWorkItem: DispatchWorkItem?
+    let fileURL: URL
 
-    static var fileURL: URL {
+    init(fileURL: URL = Store.defaultFileURL) {
+        self.fileURL = fileURL
+    }
+
+    nonisolated static var defaultFileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Fauxcus", isDirectory: true)
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         return dir.appendingPathComponent("store.json")
     }
 
-    static func load() -> Store {
-        let store = Store()
-        let url = fileURL
+    static func load(from url: URL = Store.defaultFileURL) -> Store {
+        let store = Store(fileURL: url)
         guard FileManager.default.fileExists(atPath: url.path) else { return store }
         do {
             let data = try Data(contentsOf: url)
@@ -148,7 +152,7 @@ final class Store: ObservableObject {
         saveWorkItem = nil
         do {
             let data = try Store.encoder.encode(Payload(tasks: tasks, heartbeat: heartbeatDate))
-            try data.write(to: Store.fileURL, options: .atomic)
+            try data.write(to: fileURL, options: .atomic)
             if saveError != nil { saveError = nil }
         } catch {
             appLog.error("failed to save store: \(String(describing: error), privacy: .public)")

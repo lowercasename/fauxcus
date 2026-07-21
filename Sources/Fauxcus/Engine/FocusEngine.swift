@@ -42,6 +42,10 @@ final class FocusEngine: ObservableObject {
 
     let store: Store
 
+    /// Injectable clock and idle source so tests can drive time deterministically.
+    var dateNow: () -> Date = { Date() }
+    var idleSecondsProvider: () -> TimeInterval = { IdleMonitor.systemIdleSeconds() }
+
     private var intervalIndex = 0
     private var anchor = Date()
     private var breathFired = false
@@ -74,8 +78,8 @@ final class FocusEngine: ObservableObject {
 
     // MARK: - Clock
 
-    private func tick() {
-        now = Date()
+    func tick() {
+        now = dateNow()
         switch phase {
         case .running:
             maintainHeartbeat()
@@ -117,7 +121,7 @@ final class FocusEngine: ObservableObject {
     /// Returns true if the idle threshold was crossed (caller should stop
     /// processing this tick).
     private func checkIdle() -> Bool {
-        let idle = IdleMonitor.systemIdleSeconds()
+        let idle = idleSecondsProvider()
         guard idle >= Self.idleThreshold else { return false }
         autoPause(backdatingBy: idle)
         return true
@@ -129,7 +133,7 @@ final class FocusEngine: ObservableObject {
             phase = .picker
             return
         }
-        let cutoff = Date().addingTimeInterval(-idle)
+        let cutoff = dateNow().addingTimeInterval(-idle)
         store.update(task.id) { $0.closeOpenSession(at: cutoff) }
         checkInDeadline = nil
         phase = .away
@@ -156,13 +160,14 @@ final class FocusEngine: ObservableObject {
             return
         }
         var task = TaskRecord(name: name)
-        task.sessions.append(TaskSession(start: Date()))
+        task.sessions.append(TaskSession(start: dateNow()))
         store.add(task)
         beginFocus()
     }
 
     func resume(_ id: UUID) {
-        guard store.update(id, { $0.beginSession() }) else {
+        let date = dateNow()
+        guard store.update(id, { $0.beginSession(at: date) }) else {
             phase = .picker
             return
         }
@@ -176,7 +181,7 @@ final class FocusEngine: ObservableObject {
             return
         }
         intervalIndex = 0
-        anchor = Date()
+        anchor = dateNow()
         breathFired = false
         checkInDeadline = nil
         phase = .running
@@ -184,7 +189,7 @@ final class FocusEngine: ObservableObject {
 
     func confirmStillOnIt() {
         intervalIndex = min(intervalIndex + 1, Self.checkInIntervals.count - 1)
-        anchor = Date()
+        anchor = dateNow()
         breathFired = false
         checkInDeadline = nil
         phase = .running
@@ -196,7 +201,7 @@ final class FocusEngine: ObservableObject {
             phase = .picker
             return
         }
-        closeCurrentSession(at: Date())
+        closeCurrentSession(at: dateNow())
         checkInDeadline = nil
         phase = .pauseMenu
     }
@@ -207,8 +212,8 @@ final class FocusEngine: ObservableObject {
     }
 
     func takeBreak() {
-        breakStart = Date()
-        nextBreakNudge = Date().addingTimeInterval(Self.breakFirstNudge)
+        breakStart = dateNow()
+        nextBreakNudge = dateNow().addingTimeInterval(Self.breakFirstNudge)
         phase = .onBreak
     }
 
@@ -243,9 +248,10 @@ final class FocusEngine: ObservableObject {
     }
 
     private func finishParking(taskID: UUID, notes: String) {
+        let date = dateNow()
         store.update(taskID) { t in
             t.notes = notes
-            t.park()
+            t.park(at: date)
         }
         pendingParkNote = nil
         phase = .picker
@@ -257,7 +263,8 @@ final class FocusEngine: ObservableObject {
             phase = .picker
             return
         }
-        store.update(task.id) { $0.complete() }
+        let date = dateNow()
+        store.update(task.id) { $0.complete(at: date) }
         completedSnapshot = store.tasks.first { $0.id == task.id }
         checkInDeadline = nil
         phase = .completion
@@ -391,7 +398,8 @@ final class FocusEngine: ObservableObject {
 
     private func reopenSession() {
         guard let task = store.currentTask else { return }
-        store.update(task.id) { $0.sessions.append(TaskSession(start: Date())) }
+        let date = dateNow()
+        store.update(task.id) { $0.sessions.append(TaskSession(start: date)) }
     }
 
     // MARK: - View conveniences
