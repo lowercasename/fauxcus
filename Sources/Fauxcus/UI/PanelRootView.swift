@@ -5,19 +5,33 @@ struct PanelRootView: View {
     @EnvironmentObject var store: Store
 
     var body: some View {
+        surface
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: engine.phase)
+    }
+
+    private var core: some View {
         VStack(spacing: 0) {
             storeWarning
             content
         }
-            .frame(width: 300)
-            .background(PanelBackground())
-            .modifier(SheenWave())
-            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 16, style: .continuous)
-                    .strokeBorder(.primary.opacity(0.08))
-            )
-            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: engine.phase)
+        .frame(width: 300)
+    }
+
+    /// Liquid Glass on Tahoe; the frosted NSVisualEffectView before it.
+    @ViewBuilder private var surface: some View {
+        let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
+        if #available(macOS 26.0, *) {
+            core
+                .modifier(SheenWave())
+                .clipShape(shape)
+                .glassEffect(.regular, in: shape)
+        } else {
+            core
+                .background(PanelBackground())
+                .modifier(SheenWave())
+                .clipShape(shape)
+                .overlay(shape.strokeBorder(.primary.opacity(0.08)))
+        }
     }
 
     /// Persistent storage problems (unreadable store, failing saves) outrank

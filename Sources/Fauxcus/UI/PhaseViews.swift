@@ -219,6 +219,8 @@ struct RunningView: View {
                 Text(engine.elapsedString)
                     .font(.system(size: 26, weight: .medium, design: .rounded).monospacedDigit())
                     .foregroundStyle(.secondary)
+                    .onTapGesture { engine.wave.send() }
+                    .help("Click to preview the alert wave")
                 Spacer()
                 IconButton("checkmark.circle.fill", help: "Done") { engine.completeCurrent() }
                 IconButton("pause.circle.fill", help: "Pause") { engine.requestPause() }
