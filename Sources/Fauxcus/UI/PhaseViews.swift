@@ -211,10 +211,13 @@ struct RunningView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(engine.currentTaskName)
-                .font(.system(size: 15, weight: .semibold))
-                .lineLimit(2)
-                .modifier(Breathing())
+            HStack(spacing: 8) {
+                PrismIcon()
+                Text(engine.currentTaskName)
+                    .font(.system(size: 15, weight: .semibold))
+                    .lineLimit(2)
+            }
+            .modifier(Breathing())
             HStack(spacing: 10) {
                 Text(engine.elapsedString)
                     .font(.system(size: 26, weight: .medium, design: .rounded).monospacedDigit())
