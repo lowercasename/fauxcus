@@ -13,7 +13,17 @@ cp .build/release/Fauxcus "$APP/Contents/MacOS/Fauxcus"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
 cp Resources/Fauxcus.icns Resources/MenuBarIcon.png "Resources/MenuBarIcon@2x.png" \
    Resources/PrismIcon.png "Resources/PrismIcon@2x.png" "$APP/Contents/Resources/"
-codesign --force -s - "$APP"
+
+# Prefer a real Apple Development identity (stable across rebuilds, so TCC
+# permissions like Reminders stick); fall back to ad-hoc if none exists.
+IDENTITY=$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/ {print $2; exit}')
+if [[ -n "$IDENTITY" ]]; then
+    codesign --force --sign "$IDENTITY" "$APP"
+    echo "Signed with: $IDENTITY"
+else
+    codesign --force -s - "$APP"
+    echo "Signed ad-hoc (no Apple Development identity found)"
+fi
 
 echo "Built $APP"
 

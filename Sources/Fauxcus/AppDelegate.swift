@@ -134,6 +134,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func present(_ window: NSWindow) {
+        // Center on each fresh open — otherwise windows appear wherever the
+        // system last left them, which for a menu bar app reads as "stuck by
+        // the menu bar icon".
+        if !window.isVisible {
+            window.center()
+        }
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
     }
