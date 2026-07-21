@@ -27,6 +27,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             name: .hotkeyChanged, object: nil
         )
 
+        // No onboarding screen: on first launch, quietly enable start-at-login
+        // (visible and reversible in Settings) and open straight to the picker.
+        if !UserDefaults.standard.bool(forKey: "hasLaunchedBefore") {
+            UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
+            LoginItem.setEnabled(true)
+        }
+
         panelController.show()
     }
 
@@ -82,6 +89,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             }
         }
         guard !image.representations.isEmpty else {
+            appLog.warning("menu bar icon PNGs missing from bundle — falling back to SF Symbol")
             return NSImage(systemSymbolName: "scope", accessibilityDescription: "Fauxcus")
         }
         image.isTemplate = true
@@ -131,7 +139,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func summon() {
-        panelController.summon()
+        // Only take keyboard focus in phases that have a text field to give it to.
+        let wantsKey: Bool
+        switch engine.phase {
+        case .picker, .running, .checkIn, .switchNote:
+            wantsKey = true
+        default:
+            wantsKey = false
+        }
+        panelController.summon(makeKey: wantsKey)
         switch engine.phase {
         case .running, .checkIn:
             engine.focusNoteRequest += 1

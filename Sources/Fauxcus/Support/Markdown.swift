@@ -18,6 +18,8 @@ enum Markdown {
     static func copyToPasteboard(_ task: TaskRecord) {
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
-        pasteboard.setString(render(task), forType: .string)
+        if !pasteboard.setString(render(task), forType: .string) {
+            appLog.warning("pasteboard write failed for task \(task.name, privacy: .public)")
+        }
     }
 }

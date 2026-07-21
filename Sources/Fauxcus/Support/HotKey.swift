@@ -85,10 +85,20 @@ final class HotKeyManager {
         )
     }
 
-    func register(keyCode: UInt32, modifiers: UInt32) {
+    deinit {
+        unregister()
+        if let eventHandler { RemoveEventHandler(eventHandler) }
+    }
+
+    @discardableResult
+    func register(keyCode: UInt32, modifiers: UInt32) -> Bool {
         unregister()
         let id = EventHotKeyID(signature: OSType(0x4658_4353), id: 1) // "FXCS"
-        RegisterEventHotKey(keyCode, modifiers, id, GetEventDispatcherTarget(), 0, &hotKeyRef)
+        let status = RegisterEventHotKey(keyCode, modifiers, id, GetEventDispatcherTarget(), 0, &hotKeyRef)
+        if status != noErr {
+            appLog.error("RegisterEventHotKey failed (status \(status)) — the combo may be taken by another app")
+        }
+        return status == noErr
     }
 
     func unregister() {

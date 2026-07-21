@@ -4,7 +4,6 @@ import Combine
 @MainActor
 final class FocusEngine: ObservableObject {
     enum Phase: Equatable {
-        case firstRun
         case picker
         case running
         case checkIn
@@ -34,7 +33,7 @@ final class FocusEngine: ObservableObject {
     @Published var migrationError: String?
     @Published private(set) var migratingIDs: Set<UUID> = []
 
-    /// Fires the 2-second "breath" animation in whichever view is listening.
+    /// Fires the gentle "breath" animation in whichever view is listening.
     let breath = PassthroughSubject<Void, Never>()
 
     /// Fires the more obvious sheen-wave across the whole panel — used for
@@ -52,10 +51,11 @@ final class FocusEngine: ObservableObject {
     private var pendingParkNote: String?
     private var lastHeartbeat = Date.distantPast
     private var ticker: Timer?
+    private var sleepObserver: NSObjectProtocol?
 
     init(store: Store) {
         self.store = store
-        phase = UserDefaults.standard.bool(forKey: "hasCompletedFirstRun") ? .picker : .firstRun
+        phase = .picker
         let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
@@ -63,6 +63,13 @@ final class FocusEngine: ObservableObject {
         RunLoop.main.add(timer, forMode: .common)
         ticker = timer
         observeSleep()
+    }
+
+    deinit {
+        ticker?.invalidate()
+        if let sleepObserver {
+            NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver)
+        }
     }
 
     // MARK: - Clock
@@ -107,7 +114,8 @@ final class FocusEngine: ObservableObject {
         store.heartbeat()
     }
 
-    /// Returns true if we auto-paused (caller should stop processing this tick).
+    /// Returns true if the idle threshold was crossed (caller should stop
+    /// processing this tick).
     private func checkIdle() -> Bool {
         let idle = IdleMonitor.systemIdleSeconds()
         guard idle >= Self.idleThreshold else { return false }
@@ -116,15 +124,19 @@ final class FocusEngine: ObservableObject {
     }
 
     private func autoPause(backdatingBy idle: TimeInterval) {
-        guard let task = store.currentTask else { return }
+        guard let task = store.currentTask else {
+            appLog.fault("autoPause with no active task in phase \(String(describing: self.phase), privacy: .public)")
+            phase = .picker
+            return
+        }
         let cutoff = Date().addingTimeInterval(-idle)
-        store.update(task.id) { Self.closeSession(&$0, at: cutoff) }
+        store.update(task.id) { $0.closeOpenSession(at: cutoff) }
         checkInDeadline = nil
         phase = .away
     }
 
     private func observeSleep() {
-        NSWorkspace.shared.notificationCenter.addObserver(
+        sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
             forName: NSWorkspace.willSleepNotification, object: nil, queue: .main
         ) { [weak self] _ in
             Task { @MainActor in
@@ -136,14 +148,13 @@ final class FocusEngine: ObservableObject {
 
     // MARK: - Actions
 
-    func completeFirstRun() {
-        UserDefaults.standard.set(true, forKey: "hasCompletedFirstRun")
-        phase = .picker
-    }
-
     func startTask(named raw: String) {
         let name = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !name.isEmpty else { return }
+        guard store.currentTask == nil else {
+            appLog.fault("startTask while a task is already active")
+            return
+        }
         var task = TaskRecord(name: name)
         task.sessions.append(TaskSession(start: Date()))
         store.add(task)
@@ -151,15 +162,19 @@ final class FocusEngine: ObservableObject {
     }
 
     func resume(_ id: UUID) {
-        store.update(id) { t in
-            t.status = .active
-            t.parkedAt = nil
-            t.sessions.append(TaskSession(start: Date()))
+        guard store.update(id, { $0.beginSession() }) else {
+            phase = .picker
+            return
         }
         beginFocus()
     }
 
     private func beginFocus() {
+        guard store.currentTask != nil else {
+            appLog.fault("beginFocus with no active task")
+            phase = .picker
+            return
+        }
         intervalIndex = 0
         anchor = Date()
         breathFired = false
@@ -176,6 +191,11 @@ final class FocusEngine: ObservableObject {
     }
 
     func requestPause() {
+        guard store.currentTask != nil else {
+            appLog.fault("requestPause with no active task")
+            phase = .picker
+            return
+        }
         closeCurrentSession(at: Date())
         checkInDeadline = nil
         phase = .pauseMenu
@@ -225,21 +245,19 @@ final class FocusEngine: ObservableObject {
     private func finishParking(taskID: UUID, notes: String) {
         store.update(taskID) { t in
             t.notes = notes
-            Self.closeSession(&t, at: Date())
-            t.status = .parked
-            t.parkedAt = Date()
+            t.park()
         }
         pendingParkNote = nil
         phase = .picker
     }
 
     func completeCurrent() {
-        guard let task = store.currentTask else { return }
-        store.update(task.id) { t in
-            Self.closeSession(&t, at: Date())
-            t.status = .completed
-            t.completedAt = Date()
+        guard let task = store.currentTask else {
+            appLog.fault("completeCurrent with no active task in phase \(String(describing: self.phase), privacy: .public)")
+            phase = .picker
+            return
         }
+        store.update(task.id) { $0.complete() }
         completedSnapshot = store.tasks.first { $0.id == task.id }
         checkInDeadline = nil
         phase = .completion
@@ -247,6 +265,7 @@ final class FocusEngine: ObservableObject {
         DispatchQueue.main.asyncAfter(deadline: .now() + Self.completionFlourishDuration) { [weak self] in
             guard let self, self.phase == .completion, self.completedSnapshot?.id == snapshotID else { return }
             self.phase = .picker
+            self.completedSnapshot = nil
         }
     }
 
@@ -258,26 +277,10 @@ final class FocusEngine: ObservableObject {
 
     var currentNotes: String { store.currentTask?.notes ?? "" }
 
-    // MARK: - Migration (parked → Todoist / Markdown)
-
-    enum MigrationDestination: String, CaseIterable {
-        case todoist, reminders, things, markdown
-
-        var label: String {
-            switch self {
-            case .todoist: "Todoist"
-            case .reminders: "Reminders"
-            case .things: "Things"
-            case .markdown: "clipboard"
-            }
-        }
-
-        var isAvailable: Bool {
-            self == .things ? Things.isInstalled : true
-        }
-    }
+    // MARK: - Migration (parked → external destinations)
 
     func migrate(_ id: UUID, to destination: MigrationDestination) {
+        guard !migratingIDs.contains(id) else { return }
         guard let task = store.tasks.first(where: { $0.id == id }) else { return }
         switch destination {
         case .markdown:
@@ -287,11 +290,15 @@ final class FocusEngine: ObservableObject {
             do {
                 try Things.addTask(name: task.name, notes: task.notes)
                 finishMigration(id, to: destination)
-            } catch {
+            } catch Things.ThingsError.notInstalled {
                 migrationError = "Things doesn't seem to be installed."
+            } catch {
+                appLog.error("Things migration failed: \(String(describing: error), privacy: .public)")
+                migrationError = "Couldn't hand that task to Things — try again."
             }
         case .todoist:
-            let token = UserDefaults.standard.string(forKey: "todoistToken") ?? ""
+            let token = (UserDefaults.standard.string(forKey: "todoistToken") ?? "")
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             guard !token.isEmpty else {
                 migrationError = "Add your Todoist token in Settings first."
                 return
@@ -335,6 +342,7 @@ final class FocusEngine: ObservableObject {
                 try await work()
                 await MainActor.run { self.finishMigration(id, to: destination) }
             } catch {
+                appLog.error("migration to \(destination.rawValue, privacy: .public) failed: \(String(describing: error), privacy: .public)")
                 await MainActor.run {
                     self.migratingIDs.remove(id)
                     self.migrationError = onFailure(error)
@@ -346,10 +354,7 @@ final class FocusEngine: ObservableObject {
     private func finishMigration(_ id: UUID, to destination: MigrationDestination) {
         migratingIDs.remove(id)
         migrationError = nil
-        store.update(id) { t in
-            t.status = .migrated
-            t.exportedTo = destination.rawValue
-        }
+        store.update(id) { $0.markMigrated(to: destination) }
         // If we were blocked on a full parking lot, the freed slot completes the park.
         if phase == .parkingFull, let note = pendingParkNote, let current = store.currentTask {
             finishParking(taskID: current.id, notes: note)
@@ -374,24 +379,14 @@ final class FocusEngine: ObservableObject {
 
     func appWillTerminate() {
         guard let task = store.currentTask else { return }
-        store.update(task.id) { t in
-            Self.closeSession(&t, at: Date())
-            t.status = .parked
-            t.parkedAt = Date()
-        }
+        store.update(task.id) { $0.park() }
     }
 
     // MARK: - Session helpers
 
-    private static func closeSession(_ t: inout TaskRecord, at date: Date) {
-        if let i = t.sessions.indices.last, t.sessions[i].end == nil {
-            t.sessions[i].end = max(t.sessions[i].start, date)
-        }
-    }
-
     private func closeCurrentSession(at date: Date) {
         guard let task = store.currentTask else { return }
-        store.update(task.id) { Self.closeSession(&$0, at: date) }
+        store.update(task.id) { $0.closeOpenSession(at: date) }
     }
 
     private func reopenSession() {

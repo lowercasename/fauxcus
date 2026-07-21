@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 
 /// Borderless, non-activating panel: floats above everything, never steals
-/// focus from the frontmost app except when the user deliberately types.
+/// focus from the frontmost app except when the user deliberately types or
+/// summons it via the global hotkey.
 final class FloatingPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     override var canBecomeMain: Bool { false }
@@ -51,6 +52,23 @@ final class PanelController: NSObject {
             self, selector: #selector(panelDidResize),
             name: NSWindow.didResizeNotification, object: panel
         )
+        // Displays can appear/disappear mid-session; without this the panel
+        // can be stranded off-screen until the next launch.
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(screensChanged),
+            name: NSApplication.didChangeScreenParametersNotification, object: nil
+        )
+    }
+
+    @objc private func screensChanged() {
+        reclamp()
+    }
+
+    private func reclamp() {
+        let clamped = clampedToVisible(panel.frame)
+        if clamped != panel.frame.origin {
+            moveTo(clamped)
+        }
     }
 
     private func positionInitially() {
@@ -106,12 +124,14 @@ final class PanelController: NSObject {
     }
 
     func show() {
+        reclamp()
         panel.orderFrontRegardless()
     }
 
-    func summon() {
+    func summon(makeKey: Bool = true) {
+        reclamp()
         panel.orderFrontRegardless()
-        panel.makeKey()
+        if makeKey { panel.makeKey() }
     }
 
     func toggle() {

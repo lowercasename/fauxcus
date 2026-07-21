@@ -1,5 +1,6 @@
 #!/bin/bash
 # Build Fauxcus.app from the Swift package and ad-hoc sign it.
+# `build.sh install` additionally replaces /Applications/Fauxcus.app and relaunches.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -18,7 +19,11 @@ echo "Built $APP"
 
 if [[ "${1:-}" == "install" ]]; then
     pkill -x Fauxcus || true
-    sleep 1
+    for _ in $(seq 1 20); do
+        pgrep -x Fauxcus >/dev/null || break
+        sleep 0.25
+    done
+    rm -rf /Applications/Fauxcus.app
     ditto "$APP" /Applications/Fauxcus.app
     open /Applications/Fauxcus.app
     echo "Installed and launched /Applications/Fauxcus.app"

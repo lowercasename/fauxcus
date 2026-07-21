@@ -3,6 +3,7 @@ import SwiftUI
 struct SettingsView: View {
     @AppStorage("todoistToken") private var todoistToken = ""
     @State private var launchAtLogin = LoginItem.isEnabled
+    @State private var loginError: String?
 
     var body: some View {
         Form {
@@ -11,8 +12,18 @@ struct SettingsView: View {
             }
             Toggle("Start at login", isOn: $launchAtLogin)
                 .onChange(of: launchAtLogin) {
-                    LoginItem.setEnabled(launchAtLogin)
+                    if LoginItem.setEnabled(launchAtLogin) {
+                        loginError = nil
+                    } else {
+                        launchAtLogin = LoginItem.isEnabled
+                        loginError = "Couldn't change this — make sure Fauxcus is in Applications, then try again."
+                    }
                 }
+            if let loginError {
+                Text(loginError)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+            }
             SecureField("Todoist API token", text: $todoistToken)
             Text("Find it in Todoist → Settings → Integrations → Developer.")
                 .font(.caption)
@@ -34,6 +45,9 @@ struct HotkeyRecorderView: View {
             recording ? stopRecording() : startRecording()
         }
         .buttonStyle(.bordered)
+        // Without this, closing Settings mid-recording leaks the monitor,
+        // which then swallows every keystroke in the app.
+        .onDisappear { stopRecording() }
     }
 
     private func startRecording() {

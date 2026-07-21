@@ -7,6 +7,7 @@ enum IdleMonitor {
         let types: [CGEventType] = [
             .mouseMoved, .leftMouseDown, .rightMouseDown, .otherMouseDown,
             .leftMouseDragged, .rightMouseDragged, .keyDown, .scrollWheel,
+            .flagsChanged,
         ]
         return types
             .map { CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: $0) }

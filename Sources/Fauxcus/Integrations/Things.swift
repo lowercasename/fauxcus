@@ -4,6 +4,7 @@ enum Things {
     enum ThingsError: Error {
         case notInstalled
         case badURL
+        case launchFailed
     }
 
     static var isInstalled: Bool {
@@ -22,6 +23,6 @@ enum Things {
             URLQueryItem(name: "notes", value: notes),
         ]
         guard let url = components.url else { throw ThingsError.badURL }
-        NSWorkspace.shared.open(url)
+        guard NSWorkspace.shared.open(url) else { throw ThingsError.launchFailed }
     }
 }

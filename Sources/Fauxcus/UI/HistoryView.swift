@@ -41,10 +41,9 @@ private struct HistoryRow: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if task.status == .migrated {
-                    let destination = task.exportedTo.flatMap(FocusEngine.MigrationDestination.init(rawValue:))
                     Label(
-                        destination == .markdown ? "Copied to clipboard"
-                            : "Migrated to \(destination?.label ?? "elsewhere")",
+                        task.exportedTo == .markdown ? "Copied to clipboard"
+                            : "Migrated to \(task.exportedTo?.label ?? "elsewhere")",
                         systemImage: "arrow.up.right.square"
                     )
                     .font(.caption)

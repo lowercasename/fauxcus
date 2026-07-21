@@ -2,9 +2,13 @@ import SwiftUI
 
 struct PanelRootView: View {
     @EnvironmentObject var engine: FocusEngine
+    @EnvironmentObject var store: Store
 
     var body: some View {
-        content
+        VStack(spacing: 0) {
+            storeWarning
+            content
+        }
             .frame(width: 300)
             .background(PanelBackground())
             .modifier(SheenWave())
@@ -16,9 +20,35 @@ struct PanelRootView: View {
             .animation(.spring(response: 0.35, dampingFraction: 0.8), value: engine.phase)
     }
 
+    /// Persistent storage problems (unreadable store, failing saves) outrank
+    /// any phase — shown above whatever screen is active.
+    @ViewBuilder private var storeWarning: some View {
+        if let text = store.saveError ?? store.loadWarning {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.yellow)
+                Text(text)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 4)
+                if store.saveError == nil {
+                    Button {
+                        store.loadWarning = nil
+                    } label: {
+                        Image(systemName: "xmark").font(.system(size: 9, weight: .bold))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.tertiary)
+                }
+            }
+            .padding(10)
+        }
+    }
+
     @ViewBuilder private var content: some View {
         switch engine.phase {
-        case .firstRun: FirstRunView()
         case .picker: PickerView()
         case .running: RunningView()
         case .checkIn: CheckInView()

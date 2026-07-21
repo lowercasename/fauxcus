@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Inline glyph variant: the prism silhouette as a flat, outline-free mark.
-     Four chunky bands so it still reads as a spectrum at 18px. The detailed
-     white-face/black-frame treatment lives only in the app icon. -->
+     Four chunky bands so it still reads as a spectrum at 18px. The framed
+     treatment lives in prism.svg and menubar.svg; the app icon uses this same
+     frameless frost style with six bands. -->
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <defs>
     <clipPath id="prism">

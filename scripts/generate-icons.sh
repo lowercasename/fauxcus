@@ -1,6 +1,6 @@
 #!/bin/bash
-# Regenerate Fauxcus.icns and the menu bar template PNGs from the SVG sources
-# in Resources/icon/. Run after editing those SVGs.
+# Regenerate Fauxcus.icns, the menu bar template PNGs, and the inline prism
+# glyph PNGs from the SVG sources in Resources/icon/. Run after editing those.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -24,4 +24,4 @@ iconutil -c icns "$ICONSET" -o Resources/Fauxcus.icns
 "$INKSCAPE" -w 18 -h 18 Resources/icon/inline.svg -o Resources/PrismIcon.png 2>/dev/null
 "$INKSCAPE" -w 36 -h 36 Resources/icon/inline.svg -o "Resources/PrismIcon@2x.png" 2>/dev/null
 
-echo "Generated Resources/Fauxcus.icns and menu bar PNGs"
+echo "Generated Resources/Fauxcus.icns, menu bar PNGs, and inline prism PNGs"

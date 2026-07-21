@@ -1,37 +1,5 @@
 import SwiftUI
 
-// MARK: - First run
-
-struct FirstRunView: View {
-    @EnvironmentObject var engine: FocusEngine
-    @State private var launchAtLogin = true
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Fauxcus")
-                .font(.system(size: 18, weight: .bold, design: .rounded))
-            VStack(alignment: .leading, spacing: 6) {
-                Label("One task at a time, gently.", systemImage: "scope")
-                Label("Summon me with \(Hotkey.description).", systemImage: "keyboard")
-                Label("Connect Todoist later in Settings.", systemImage: "arrow.up.right.square")
-            }
-            .font(.system(size: 12))
-            .foregroundStyle(.secondary)
-            Toggle("Start at login", isOn: $launchAtLogin)
-                .font(.system(size: 12))
-            Button {
-                LoginItem.setEnabled(launchAtLogin)
-                engine.completeFirstRun()
-            } label: {
-                Text("Let's go").frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.large)
-        }
-        .padding(16)
-    }
-}
-
 // MARK: - Picker
 
 struct PickerView: View {
@@ -137,7 +105,11 @@ struct PrismIcon: View {
                 image.addRepresentation(rep)
             }
         }
-        return image.representations.isEmpty ? nil : image
+        guard !image.representations.isEmpty else {
+            appLog.warning("PrismIcon PNGs missing from bundle")
+            return nil
+        }
+        return image
     }()
 
     var body: some View {
@@ -191,7 +163,7 @@ struct MigrationDestinationItems: View {
     let taskID: UUID
 
     var body: some View {
-        ForEach(FocusEngine.MigrationDestination.allCases.filter(\.isAvailable), id: \.self) { destination in
+        ForEach(MigrationDestination.allCases.filter(\.isAvailable), id: \.self) { destination in
             Button(destination == .markdown ? "Copy to clipboard & clear" : "Migrate to \(destination.label)") {
                 engine.migrate(taskID, to: destination)
             }
@@ -272,8 +244,9 @@ struct RunningView: View {
     }
 }
 
-/// The one notes surface: the task's full notes blob, always showing older
-/// notes, saved as you type.
+/// The shared notes editor: the task's full notes blob, older notes always
+/// visible. Both call sites live-save on change — edits survive Back, quit,
+/// and crashes alike.
 struct TaskNotesEditor: View {
     @Binding var text: String
     var focused: FocusState<Bool>.Binding
@@ -314,6 +287,7 @@ struct TaskNotesEditor: View {
     private static func moveCursorToEnd() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) {
             guard let textView = NSApp.windows
+                .filter({ $0 is FloatingPanel })
                 .compactMap({ $0.firstResponder as? NSTextView })
                 .first(where: { $0.isEditable })
             else { return }
@@ -347,7 +321,7 @@ struct CheckInView: View {
                 Button {
                     engine.requestPause()
                 } label: {
-                    Text("Pausing").frame(maxWidth: .infinity)
+                    Text("Pause").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
             }
@@ -412,6 +386,7 @@ struct SwitchNoteView: View {
                 .font(.system(size: 12))
                 .foregroundStyle(.secondary)
             TaskNotesEditor(text: $notes, focused: $focused, placeholder: "Where did you leave off?")
+                .onChange(of: notes) { engine.setNotesForCurrent(notes) }
             HStack {
                 Button("Back") { engine.cancelSwitchTask() }
                     .buttonStyle(.bordered)

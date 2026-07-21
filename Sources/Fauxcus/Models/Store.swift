@@ -8,7 +8,12 @@ final class Store: ObservableObject {
     }
 
     @Published private(set) var tasks: [TaskRecord] = []
+    /// Set when store.json existed but couldn't be read (a backup was made).
+    @Published var loadWarning: String?
+    /// Set while disk writes are failing; cleared by the next successful save.
+    @Published private(set) var saveError: String?
     private var heartbeatDate: Date?
+    private var saveWorkItem: DispatchWorkItem?
 
     static var fileURL: URL {
         let dir = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
@@ -19,24 +24,41 @@ final class Store: ObservableObject {
 
     static func load() -> Store {
         let store = Store()
-        if let data = try? Data(contentsOf: fileURL),
-           let payload = try? decoder.decode(Payload.self, from: data) {
+        let url = fileURL
+        guard FileManager.default.fileExists(atPath: url.path) else { return store }
+        do {
+            let data = try Data(contentsOf: url)
+            let payload = try decoder.decode(Payload.self, from: data)
             store.tasks = payload.tasks
+            store.heartbeatDate = payload.heartbeat
             store.healOpenSessions(asOf: payload.heartbeat)
+        } catch {
+            // Never overwrite a store we couldn't read: move it aside first, so
+            // the heartbeat/save cycle can't destroy recoverable data.
+            appLog.error("store.json unreadable: \(String(describing: error), privacy: .public)")
+            let backup = url.deletingPathExtension()
+                .appendingPathExtension("corrupt-\(Int(Date().timeIntervalSince1970))")
+                .appendingPathExtension("json")
+            do {
+                try FileManager.default.moveItem(at: url, to: backup)
+                store.loadWarning = "Task history couldn't be read — the old file was kept as \(backup.lastPathComponent)."
+            } catch {
+                appLog.error("couldn't back up unreadable store: \(String(describing: error), privacy: .public)")
+                store.loadWarning = "Task history couldn't be read."
+            }
         }
         return store
     }
 
     /// If the app died mid-task, close the dangling session at the last known
     /// heartbeat and park the task — the work is never lost, never inflated.
+    /// Note: this (and appWillTerminate) parks past the 5-task cap on purpose;
+    /// the cap is a UI-flow policy enforced only at explicit park time.
     private func healOpenSessions(asOf heartbeat: Date?) {
         var changed = false
         for i in tasks.indices where tasks[i].status == .active {
-            if let last = tasks[i].sessions.indices.last, tasks[i].sessions[last].end == nil {
-                tasks[i].sessions[last].end = max(tasks[i].sessions[last].start, heartbeat ?? tasks[i].sessions[last].start)
-            }
-            tasks[i].status = .parked
-            tasks[i].parkedAt = heartbeat ?? Date()
+            let cutoff = heartbeat ?? tasks[i].sessions.last?.start ?? Date()
+            tasks[i].park(at: cutoff)
             changed = true
         }
         if changed { save() }
@@ -69,28 +91,34 @@ final class Store: ObservableObject {
     }
 
     func add(_ task: TaskRecord) {
+        assert(task.status != .active || currentTask == nil, "second active task")
         tasks.append(task)
         save()
     }
 
-    func update(_ id: UUID, _ mutate: (inout TaskRecord) -> Void) {
-        guard let i = tasks.firstIndex(where: { $0.id == id }) else { return }
+    @discardableResult
+    func update(_ id: UUID, _ mutate: (inout TaskRecord) -> Void) -> Bool {
+        guard let i = tasks.firstIndex(where: { $0.id == id }) else {
+            appLog.error("update for unknown task id \(id, privacy: .public)")
+            return false
+        }
         mutate(&tasks[i])
         save()
+        return true
     }
 
     /// For high-frequency edits (typing notes): mutate immediately, write to
     /// disk debounced so we don't hit the filesystem on every keystroke.
-    func updateDebounced(_ id: UUID, _ mutate: (inout TaskRecord) -> Void) {
-        guard let i = tasks.firstIndex(where: { $0.id == id }) else { return }
+    @discardableResult
+    func updateDebounced(_ id: UUID, _ mutate: (inout TaskRecord) -> Void) -> Bool {
+        guard let i = tasks.firstIndex(where: { $0.id == id }) else { return false }
         mutate(&tasks[i])
         saveWorkItem?.cancel()
         let work = DispatchWorkItem { [weak self] in self?.save() }
         saveWorkItem = work
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5, execute: work)
+        return true
     }
-
-    private var saveWorkItem: DispatchWorkItem?
 
     func delete(_ id: UUID) {
         tasks.removeAll { $0.id == id }
@@ -121,8 +149,10 @@ final class Store: ObservableObject {
         do {
             let data = try Store.encoder.encode(Payload(tasks: tasks, heartbeat: heartbeatDate))
             try data.write(to: Store.fileURL, options: .atomic)
+            if saveError != nil { saveError = nil }
         } catch {
-            NSLog("Fauxcus: failed to save store: \(error)")
+            appLog.error("failed to save store: \(String(describing: error), privacy: .public)")
+            saveError = "Couldn't save your tasks — check disk space. Recent changes may be lost."
         }
     }
 }
