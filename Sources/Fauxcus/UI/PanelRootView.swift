@@ -17,11 +17,12 @@ struct PanelRootView: View {
         .frame(width: 300)
     }
 
-    /// Deliberately NOT Liquid Glass: on macOS 26.x, glass backdrop
-    /// compositing fails on cold boot for this window configuration
-    /// (borderless/non-activating/floating/all-Spaces), collapsing to
-    /// clear-black. See SPEC "Platform & presence" for the full account
-    /// and the retry criteria before reaching for glassEffect again.
+    /// Deliberately NOT Liquid Glass. Glass works here — but its designed
+    /// luminance adaptation flips the panel light/dark with whatever window
+    /// happens to be behind it (dark over Terminal, light over a browser).
+    /// An always-visible companion should be a calm constant, so the frosted
+    /// material, which follows only the system appearance, is the choice.
+    /// See SPEC "Platform & presence" before re-litigating.
     private var surface: some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
         return core
