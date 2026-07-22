@@ -362,7 +362,19 @@ final class FocusEngine: ObservableObject {
         migratingIDs.remove(id)
         migrationError = nil
         store.update(id) { $0.markMigrated(to: destination) }
-        // If we were blocked on a full parking lot, the freed slot completes the park.
+        completePendingParkIfFreed()
+    }
+
+    /// Completes a parked task in place — straight to history, no flourish.
+    func completeParked(_ id: UUID) {
+        let date = dateNow()
+        store.update(id) { $0.complete(at: date) }
+        migrationError = nil
+        completePendingParkIfFreed()
+    }
+
+    /// If we were blocked on a full parking lot, a freed slot completes the park.
+    private func completePendingParkIfFreed() {
         if phase == .parkingFull, let note = pendingParkNote, let current = store.currentTask {
             finishParking(taskID: current.id, notes: note)
         }
@@ -372,9 +384,7 @@ final class FocusEngine: ObservableObject {
     func deleteParked(_ id: UUID) {
         store.delete(id)
         migrationError = nil
-        if phase == .parkingFull, let note = pendingParkNote, let current = store.currentTask {
-            finishParking(taskID: current.id, notes: note)
-        }
+        completePendingParkIfFreed()
     }
 
     func cancelParkingFull() {

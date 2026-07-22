@@ -163,6 +163,10 @@ struct MigrationDestinationItems: View {
     let taskID: UUID
 
     var body: some View {
+        Button("Mark as done") {
+            engine.completeParked(taskID)
+        }
+        Divider()
         ForEach(MigrationDestination.allCases.filter(\.isAvailable), id: \.self) { destination in
             Button(destination == .markdown ? "Copy to clipboard & clear" : "Migrate to \(destination.label)") {
                 engine.migrate(taskID, to: destination)

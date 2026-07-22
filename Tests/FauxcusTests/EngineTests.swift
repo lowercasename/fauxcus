@@ -260,6 +260,29 @@ final class EngineTests: XCTestCase {
         XCTAssertNil(store.currentTask)
     }
 
+    func testCompleteParkedMovesToHistoryAndCompletesPendingPark() {
+        let (engine, store, clock) = makeSUT()
+        for i in 1...5 {
+            var task = TaskRecord(name: "parked \(i)")
+            task.park()
+            store.add(task)
+        }
+        engine.startTask(named: "sixth")
+        engine.requestPause()
+        engine.beginSwitchTask()
+        engine.parkCurrent(notes: "overflow")
+        XCTAssertEqual(engine.phase, .parkingFull)
+
+        let finished = store.parkedOldestFirst[0]
+        engine.completeParked(finished.id)
+        XCTAssertEqual(engine.phase, .picker, "freed slot completes the pending park")
+        XCTAssertEqual(store.parked.count, 5)
+        XCTAssertNil(store.currentTask)
+        let record = store.tasks.first { $0.id == finished.id }
+        XCTAssertEqual(record?.status, .completed)
+        XCTAssertEqual(record?.completedAt, clock.now)
+    }
+
     // MARK: - Completion & termination
 
     func testCompleteClosesTaskAndShowsFlourish() {
