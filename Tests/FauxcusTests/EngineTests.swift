@@ -89,7 +89,7 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(breaths, 1, "breath fires once per interval")
     }
 
-    func testIgnoredCheckInTimesOutAsYesAndBacksOff() {
+    func testIgnoredCheckInTimesOutAsYesAndCadenceStaysFlat() {
         let (engine, _, clock) = makeSUT()
         engine.startTask(named: "focus")
         clock.advance(600)
@@ -98,8 +98,8 @@ final class EngineTests: XCTestCase {
         clock.advance(60)
         engine.tick()
         XCTAssertEqual(engine.phase, .running, "60s of silence counts as Yes")
-        // Backoff advanced to 15 min: no check-in at 14:59, check-in at 15:00.
-        clock.advance(899)
+        // Flat cadence: next check-in is 10 minutes later, not backed off.
+        clock.advance(599)
         engine.tick()
         XCTAssertEqual(engine.phase, .running)
         clock.advance(1)
@@ -107,27 +107,15 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(engine.phase, .checkIn)
     }
 
-    func testBackoffCapsAtTwentyFiveMinutes() {
+    func testConfirmingKeepsFlatTenMinuteCadence() {
         let (engine, _, clock) = makeSUT()
         engine.startTask(named: "focus")
-        for _ in 0..<6 { engine.confirmStillOnIt() }
-        clock.advance(1499)
-        engine.tick()
-        XCTAssertEqual(engine.phase, .running)
-        clock.advance(1)
-        engine.tick()
-        XCTAssertEqual(engine.phase, .checkIn)
-    }
-
-    func testBackoffResetsOnNewTask() {
-        let (engine, _, clock) = makeSUT()
-        engine.startTask(named: "first")
-        engine.confirmStillOnIt() // backoff now 15 min
-        engine.completeCurrent()
-        engine.startTask(named: "second")
-        clock.advance(600)
-        engine.tick()
-        XCTAssertEqual(engine.phase, .checkIn, "new task starts back at the 10-minute interval")
+        for _ in 0..<3 {
+            clock.advance(600)
+            engine.tick()
+            XCTAssertEqual(engine.phase, .checkIn)
+            engine.confirmStillOnIt()
+        }
     }
 
     // MARK: - Idle & sleep
@@ -154,10 +142,9 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(engine.phase, .running)
     }
 
-    func testResumeFromAwayReopensSessionAndResetsBackoff() {
+    func testResumeFromAwayReopensSessionAndRestartsCadence() {
         let (engine, store, clock) = makeSUT()
         engine.startTask(named: "focus")
-        engine.confirmStillOnIt() // backoff 15 min
         clock.advance(1000)
         clock.idleSeconds = 400
         engine.tick()
@@ -167,7 +154,7 @@ final class EngineTests: XCTestCase {
         XCTAssertEqual(store.tasks[0].sessions.count, 2)
         clock.advance(600)
         engine.tick()
-        XCTAssertEqual(engine.phase, .checkIn, "resume resets backoff to 10 minutes")
+        XCTAssertEqual(engine.phase, .checkIn, "cadence restarts from the resume")
     }
 
     // MARK: - Pause, break, park

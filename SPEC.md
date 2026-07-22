@@ -50,11 +50,11 @@ There is no onboarding phase: the very first launch quietly enables start-at-log
 
 - `picker` → (Enter on non-empty field | tap parked row) → `running`.
 - `running` → check-in timer → `checkIn`; Done → `completion`; Pause → `pauseMenu`; idle/sleep → `away`.
-- `checkIn` → Yes or 60s timeout → `running` (backoff advances); Pause → `pauseMenu`; idle/sleep → `away`.
-- `pauseMenu` (session already closed): Take a break → `onBreak`; Park this task → `switchNote`; Back to task → `running` (new session, backoff resets).
+- `checkIn` → Yes or 60s timeout → `running` (cadence restarts); Pause → `pauseMenu`; idle/sleep → `away`.
+- `pauseMenu` (session already closed): Take a break → `onBreak`; Park this task → `switchNote`; Back to task → `running` (new session, cadence restarts).
 - `switchNote`: Park it → `picker` (or `parkingFull` if at cap); Back → `pauseMenu`.
-- `onBreak`: Back to it → `running` (new session, backoff resets). Idle rules suspended during breaks; sleeping while on break stays on break.
-- `away`: Resume → `running` (new session, backoff resets); Done → `completion`; Park this task → `switchNote`.
+- `onBreak`: Back to it → `running` (new session, cadence restarts). Idle rules suspended during breaks; sleeping while on break stays on break.
+- `away`: Resume → `running` (new session, cadence restarts); Done → `completion`; Park this task → `switchNote`.
 - `completion`: auto-advances to `picker` after the flourish.
 - `parkingFull`: migrate/delete one → pending park completes → `picker`; Never mind → `pauseMenu`.
 - App termination with an active task: session closed at quit, task parked (cap may temporarily exceed 5 — enforced only at explicit park).
@@ -63,7 +63,7 @@ There is no onboarding phase: the very first launch quietly enables start-at-log
 
 | Constant | Value |
 |---|---|
-| Check-in intervals | 10 → 15 → 20 → 25 min (advance on Yes or timeout; reset on new task/resume) |
+| Check-in interval | flat 10 min, restarting on Yes/timeout/new task/resume. Deliberately not a backoff (revised July 2026): drift risk doesn't shrink with time-on-task — ADHD hyperfocus on the wrong thing grows with it — and ignoring a check-in is free, so "earned trust" had nothing to save and cost predictability |
 | Check-in ignore timeout | 60 s (counts as Yes) |
 | Breath | midpoint of current interval, once per interval (also fires on check-in entry and each break nudge) |
 | Idle auto-pause threshold | 5 min of zero system input (any device), or system sleep |
@@ -146,7 +146,7 @@ UserDefaults: first-run flag, panel origin, hotkey code/modifiers, Todoist token
 
 ## Testing
 
-`swift test` covers the model transitions, store persistence (roundtrip, crash healing, corrupt-file backup), the engine state machine (check-in cadence and backoff, idle backdating, breaks, the parking cap and pending-park completion), and the formatters. The engine takes injectable `dateNow`/`idleSecondsProvider` closures so tests drive time deterministically. `swift test` needs the full Xcode toolchain (`xcode-select -p` should point at Xcode, not the Command Line Tools).
+`swift test` covers the model transitions, store persistence (roundtrip, crash healing, corrupt-file backup), the engine state machine (check-in cadence, idle backdating, breaks, the parking cap and pending-park completion), and the formatters. The engine takes injectable `dateNow`/`idleSecondsProvider` closures so tests drive time deterministically. `swift test` needs the full Xcode toolchain (`xcode-select -p` should point at Xcode, not the Command Line Tools).
 
 ## Out of scope (deliberately cut)
 

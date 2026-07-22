@@ -16,7 +16,10 @@ final class FocusEngine: ObservableObject {
     }
 
     // Fixed, opinionated defaults — deliberately not user-configurable.
-    static let checkInIntervals: [TimeInterval] = [600, 900, 1200, 1500] // 10 → 15 → 20 → 25 min
+    // Flat cadence on purpose: drift risk doesn't shrink with time-on-task
+    // (ADHD hyperfocus on the wrong thing grows with it), and ignoring the
+    // check-in is free — so there's nothing for a backoff to save.
+    static let checkInInterval: TimeInterval = 600
     static let checkInTimeout: TimeInterval = 60
     static let idleThreshold: TimeInterval = 300
     static let breakFirstNudge: TimeInterval = 600
@@ -46,7 +49,6 @@ final class FocusEngine: ObservableObject {
     var dateNow: () -> Date = { Date() }
     var idleSecondsProvider: () -> TimeInterval = { IdleMonitor.systemIdleSeconds() }
 
-    private var intervalIndex = 0
     private var anchor = Date()
     private var breathFired = false
     private var checkInDeadline: Date?
@@ -84,7 +86,7 @@ final class FocusEngine: ObservableObject {
         case .running:
             maintainHeartbeat()
             if checkIdle() { return }
-            let interval = Self.checkInIntervals[intervalIndex]
+            let interval = Self.checkInInterval
             if !breathFired && now >= anchor.addingTimeInterval(interval / 2) {
                 breathFired = true
                 breath.send()
@@ -180,7 +182,6 @@ final class FocusEngine: ObservableObject {
             phase = .picker
             return
         }
-        intervalIndex = 0
         anchor = dateNow()
         breathFired = false
         checkInDeadline = nil
@@ -188,7 +189,6 @@ final class FocusEngine: ObservableObject {
     }
 
     func confirmStillOnIt() {
-        intervalIndex = min(intervalIndex + 1, Self.checkInIntervals.count - 1)
         anchor = dateNow()
         breathFired = false
         checkInDeadline = nil
