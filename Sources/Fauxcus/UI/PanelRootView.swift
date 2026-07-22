@@ -21,10 +21,14 @@ struct PanelRootView: View {
     @ViewBuilder private var surface: some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
         if #available(macOS 26.0, *) {
-            core
-                .modifier(SheenWave())
-                .clipShape(shape)
-                .glassEffect(.regular, in: shape)
+            // The container manages the glass backdrop through animated size
+            // changes; bare glassEffect can drop its background mid-morph.
+            GlassEffectContainer {
+                core
+                    .modifier(SheenWave())
+                    .clipShape(shape)
+                    .glassEffect(.regular, in: shape)
+            }
         } else {
             core
                 .background(PanelBackground())
