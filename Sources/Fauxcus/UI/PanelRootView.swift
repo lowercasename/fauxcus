@@ -17,25 +17,18 @@ struct PanelRootView: View {
         .frame(width: 300)
     }
 
-    /// Liquid Glass on Tahoe; the frosted NSVisualEffectView before it.
-    @ViewBuilder private var surface: some View {
+    /// Deliberately NOT Liquid Glass: regular glass adapts its light/dark
+    /// appearance to whatever is behind the panel, so an always-visible
+    /// surface changes personality with every window it floats over. Tried
+    /// and rejected (2026-07) — the frosted material follows the *system*
+    /// appearance instead, which is the calm constant this app wants.
+    private var surface: some View {
         let shape = RoundedRectangle(cornerRadius: 16, style: .continuous)
-        if #available(macOS 26.0, *) {
-            // The container manages the glass backdrop through animated size
-            // changes; bare glassEffect can drop its background mid-morph.
-            GlassEffectContainer {
-                core
-                    .modifier(SheenWave())
-                    .clipShape(shape)
-                    .glassEffect(.regular, in: shape)
-            }
-        } else {
-            core
-                .background(PanelBackground())
-                .modifier(SheenWave())
-                .clipShape(shape)
-                .overlay(shape.strokeBorder(.primary.opacity(0.08)))
-        }
+        return core
+            .background(PanelBackground())
+            .modifier(SheenWave())
+            .clipShape(shape)
+            .overlay(shape.strokeBorder(.primary.opacity(0.08)))
     }
 
     /// Persistent storage problems (unreadable store, failing saves) outrank

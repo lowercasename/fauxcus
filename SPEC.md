@@ -22,7 +22,7 @@ ADHD-first. Every decision, present and future, is tested against these four rul
   - Never steals focus except when the user deliberately types (nonactivating panel becomes key only for text entry).
   - Draggable by its background; position persists across launches, clamped fully on-screen (a saved off-screen position self-heals on next launch, and the panel re-clamps live when displays are added or removed).
   - Grows upward from its bottom-left anchor when content expands (bottom edge re-pinned on resize).
-  - Liquid Glass surface (`.glassEffect(.regular)`) on macOS 26+, with the frosted `NSVisualEffectView` (`.popover`) as the pre-Tahoe fallback; 16pt continuous-corner radius, spring animations between states (response 0.35, damping 0.8). Clicking the running timer's digits previews the sheen wave.
+  - Frosted `NSVisualEffectView` (`.popover`) surface, 16pt continuous-corner radius, spring animations between states (response 0.35, damping 0.8). Clicking the running timer's digits previews the sheen wave. **Liquid Glass was tried and rejected** (July 2026): regular glass adapts its light/dark appearance to the content behind the panel, so an always-visible surface changes personality with every window it floats over — the opposite of calm ambient furniture. Don't re-litigate without new evidence.
 - An invisible main menu provides the Edit key equivalents (⌘A/⌘C/⌘V/⌘X/⌘Z/⇧⌘Z) that accessory apps otherwise lack.
 - Launch at login via `SMAppService`, enabled automatically on the very first launch, toggleable in Settings (failures revert the toggle and explain themselves inline).
 
